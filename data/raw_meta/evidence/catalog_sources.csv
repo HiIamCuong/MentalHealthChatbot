@@ -1,0 +1,6 @@
+﻿id,url,source,language,licence,allowed_to_scrape,contact,notes,evidence_paths
+who_mhaw_page,https://www.who.int/news-room/fact-sheets/detail/mental-health-at-work,WHO,en,WHO_publications,yes,permissions@who.int,"""Fact sheet page (HTML only, WHO)""","""data/raw_meta/evidence/who_mhaw_page.robots.txt;data/raw_meta/evidence/who_mhaw_page.html"""
+mental_health_action_plan_flyer_member_states,https://www.who.int/publications/m/item/mental-health-action-plan-2013-2030-flyer-what-member-states-can-do,WHO,en,WHO_publications,yes,permissions@who.int,"""Flyer PDF (2013–2030 action plan)""","""data/raw_meta/evidence/who_mhaw_page.robots.txt;data/raw/mental_health_action_plan_flyer_member_states.pdf"""
+who_9789240049338,https://www.who.int/publications/i/item/9789240049338,WHO,en,WHO_publications,yes,permissions@who.int,PDF book/item,"""data/raw_meta/evidence/who_mhaw_page.robots.txt;data/raw/who_9789240049338-eng.pdf"""
+who_9789240053052,https://www.who.int/publications/i/item/9789240053052,WHO,en,WHO_publications,yes,permissions@who.int,PDF book/item,"""data/raw_meta/evidence/who_mhaw_page.robots.txt;data/raw/who_9789240053052-eng.pdf"""
+who_9789240057944,https://www.who.int/publications/i/item/9789240057944,WHO,en,WHO_publications,yes,permissions@who.int,PDF book/item,"""data/raw_meta/evidence/who_mhaw_page.robots.txt;data/raw/who_9789240057944-eng.pdf"""
