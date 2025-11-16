@@ -97,11 +97,7 @@ def call_llm(prompt: str, max_tokens: int = 512, model: str = GEMINI_MODEL) -> s
     # Check 1: Thư viện đã được cài chưa?
     if not HAS_GEMINI:
         return ("Demo mode (Thư viện google-genai chưa cài). Install: pip install google-genai.")
-
-    # # Check 2: API Key đã được dán vào chưa?
-    # if GEMINI_API_KEY == "AIzaSyBKeCOW03tjIf-gfotwnsZZ1Nao-_pb3Ls":
-    #      return ("Demo mode (Vui lòng dán Gemini API Key vào biến GEMINI_API_KEY trong file code).")
-
+        
     # Khởi tạo client với API Key hardcode
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
@@ -214,3 +210,4 @@ if __name__ == "__main__":
         print("\n=== SOURCES ===\n")
         for i, c in enumerate(ctx, start=1):
             print(f"[{i}] doc_id={c.get('doc_id','?')} src={c.get('local_path','?')} chars={c.get('start_char','?')}-{c.get('end_char','?')}")
+
