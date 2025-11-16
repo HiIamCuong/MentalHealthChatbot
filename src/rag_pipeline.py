@@ -32,9 +32,12 @@ from typing import List
 
 # optional openai
 try:
-    import openai
+    from google import genai
+    from google.genai.errors import APIError
+    HAS_GEMINI = True
 except Exception:
-    openai = None
+    HAS_GEMINI = False
+    genai = None
 
 # optional reranker; re_ranker.py provided separately
 try:
@@ -52,6 +55,8 @@ RETRIEVE_K = 20
 FINAL_K = 5
 ENCODER_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 
+GEMINI_API_KEY = <YOUR_API_KEY>
+GEMINI_MODEL = "gemini-2.5-flash"
 # -----------------------------
 # 4) HELPERS
 # -----------------------------
@@ -84,32 +89,44 @@ def build_prompt(question: str, contexts: List[dict]) -> str:
     prompt = system + "\n\n" + "CONTEXT:\n" + "\n\n".join(ctx_texts) + "\n\nUser question: " + question
     return prompt
 
-def call_llm(prompt: str, max_tokens: int = 512, model: str = "gpt-4o-mini") -> str:
+def call_llm(prompt: str, max_tokens: int = 512, model: str = GEMINI_MODEL) -> str:
     """
     If openai package present and OPENAI_API_KEY set -> call OpenAI ChatCompletion.
     Otherwise return a safe offline demo string (no network).
     """
-    if openai is None:
-        return (
-            "Demo mode (openai package not installed). Install 'openai' and set OPENAI_API_KEY "
-            "to enable real LLM calls.\n\nPrompt preview:\n" + (prompt[:1200] + "..." if len(prompt) > 1200 else prompt)
-        )
-    key = os.getenv("OPENAI_API_KEY")
-    if not key:
-        return (
-            "Demo mode (OPENAI_API_KEY not set). Set OPENAI_API_KEY to enable real LLM responses.\n\n"
-            "Prompt preview:\n" + (prompt[:1200] + "..." if len(prompt) > 1200 else prompt)
-        )
-    openai.api_key = key
-    resp = openai.ChatCompletion.create(
-        model=model,
-        messages=[{"role":"system","content":"You are a helpful assistant."},
-                  {"role":"user","content":prompt}],
-        max_tokens=max_tokens,
-        temperature=0.2
-    )
-    return resp["choices"][0]["message"]["content"]
+    # Check 1: Thư viện đã được cài chưa?
+    if not HAS_GEMINI:
+        return ("Demo mode (Thư viện google-genai chưa cài). Install: pip install google-genai.")
 
+    # # Check 2: API Key đã được dán vào chưa?
+    # if GEMINI_API_KEY == "AIzaSyBKeCOW03tjIf-gfotwnsZZ1Nao-_pb3Ls":
+    #      return ("Demo mode (Vui lòng dán Gemini API Key vào biến GEMINI_API_KEY trong file code).")
+
+    # Khởi tạo client với API Key hardcode
+    try:
+        client = genai.Client(api_key=GEMINI_API_KEY)
+    except Exception as e:
+        return f"Demo mode (Lỗi khởi tạo client): {e}"
+
+    # Gọi API Gemini
+    try:
+        response = client.models.generate_content(
+            model=model,
+            contents=[
+                {"role": "user", "parts": [{"text": prompt}]}
+            ],
+            config={"max_output_tokens": max_tokens, "temperature": 0.2}
+        )
+        if response.text:
+            return response.text.strip()
+        else:
+            # Trả về thông báo lỗi nếu LLM không tạo ra được text (trả về None hoặc chuỗi rỗng)
+            return f"Demo mode (LLM không tạo ra được câu trả lời. LLM Response: {response.candidates[0].finish_reason if response.candidates else 'Unknown reason'})"
+    
+    except APIError as e:
+        return f"Demo mode (Lỗi API Gemini): {e}"
+    except Exception as e:
+        return f"Demo mode (Lỗi kết nối/chung): {e}"
 # -----------------------------
 # 5) RAG pipeline
 # -----------------------------
@@ -145,7 +162,41 @@ def retrieve_and_answer(question: str, use_rerank: bool = True, reranker_model: 
         ordered = candidates
 
     top_contexts = ordered[:FINAL_K]
-    prompt = build_prompt(question, top_contexts)
+    MAX_PROMPT_TOKENS = 3500  # Ngưỡng an toàn cho toàn bộ Input 
+    
+    tokenizer = tiktoken.get_encoding("cl100k_base") 
+    
+    current_contexts = []
+    
+    # System prompt
+    system_text = "You are an empathetic assistant. You must not provide medical diagnosis. If user is in crisis, instruct them to contact emergency services immediately. Always cite sources by number when referencing facts."
+    system_tokens = len(tokenizer.encode(system_text))
+    
+    # Question
+    question_tokens = len(tokenizer.encode("User question: " + question))
+    
+    # Token tối đa còn lại cho tất cả các context
+    context_budget = MAX_PROMPT_TOKENS - system_tokens - question_tokens - 10 # 10 token dự phòng
+    
+    total_context_tokens = 0
+    
+    for c in top_contexts:
+        # Ước tính token cho mỗi context (bao gồm cả metadata khi build prompt)
+        context_text_and_meta = f"Source [X] {Path(c.get('local_path','?')).name} (chars {c.get('start_char', '?')}-{c.get('end_char', '?')}):\n{c.get('text', '')}\n"
+        chunk_tokens = len(tokenizer.encode(context_text_and_meta))
+        
+        if total_context_tokens + chunk_tokens < context_budget:
+            current_contexts.append(c)
+            total_context_tokens += chunk_tokens
+        else:
+            # Nếu vượt ngân sách, dừng lại 
+            break
+
+    final_contexts = current_contexts # Cập nhật danh sách context đã được cắt gọn
+    
+    if not final_contexts and top_contexts:
+        print(f"[WARN] Contexts bị cắt hết do vượt quá {MAX_PROMPT_TOKENS} tokens. LLM sẽ trả lời mà không có Context.")
+    prompt = build_prompt(question, final_contexts)
     answer = call_llm(prompt)
     return answer, top_contexts
 
