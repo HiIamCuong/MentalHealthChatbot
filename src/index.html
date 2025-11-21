@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mental Health Companion</title>
+    <style>
+        /* --- 1. CẤU TRÚC CƠ BẢN & MÀU SẮC --- */
+        :root {
+            --primary-color: #6B9080; /* Sage Green - An thần */
+            --secondary-color: #A4C3B2; /* Light Sage */
+            --bg-color: #F6FFF8; /* Mint Cream - Dịu mắt */
+            --chat-bg: #FFFFFF;
+            --text-color: #333;
+            --bot-msg-bg: #EAF4F4;
+            --user-msg-bg: #6B9080;
+            --user-text-color: #fff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: var(--text-color);
+        }
+
+        /* --- 2. KHUNG CHAT CHÍNH --- */
+        .chat-container {
+            width: 100%;
+            max-width: 900px; /* Rộng rãi để hiển thị văn bản dài */
+            height: 90vh;
+            background-color: var(--chat-bg);
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- 3. HEADER --- */
+        .chat-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .bot-avatar {
+            width: 40px;
+            height: 40px;
+            background-color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--primary-color);
+        }
+
+        .header-info h2 { margin: 0; font-size: 1.2rem; }
+        .header-info p { margin: 0; font-size: 0.8rem; opacity: 0.9; }
+
+        /* --- 4. KHU VỰC TIN NHẮN --- */
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 15px;
+            line-height: 1.5;
+            position: relative;
+            font-size: 0.95rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .message.bot {
+            align-self: flex-start;
+            background-color: var(--bot-msg-bg);
+            border-bottom-left-radius: 2px;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background-color: var(--user-msg-bg);
+            color: var(--user-text-color);
+            border-bottom-right-radius: 2px;
+        }
+
+        /* Style cho Nguồn trích dẫn (RAG Feature) */
+        .sources-container {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(0,0,0,0.1);
+            font-size: 0.8rem;
+            color: #555;
+        }
+        .source-tag {
+            display: inline-block;
+            background-color: rgba(255,255,255,0.5);
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 2px 6px;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* --- 5. KHUNG NHẬP LIỆU --- */
+        .chat-input-area {
+            padding: 20px;
+            background-color: #fff;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 30px;
+            outline: none;
+            transition: border 0.3s;
+        }
+
+        input[type="text"]:focus { border-color: var(--primary-color); }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0 25px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        button:hover { background-color: #557266; }
+
+        /* Disclaimer Footer */
+        .disclaimer {
+            text-align: center;
+            font-size: 0.7rem;
+            color: #999;
+            padding: 5px;
+            background-color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="bot-avatar">🌿</div>
+            <div class="header-info">
+                <h2>Trợ lý Sức khỏe Tinh thần</h2>
+                <p>Luôn lắng nghe, thấu hiểu và bảo mật</p>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chat-box">
+            <div class="message bot">
+                Xin chào! Tôi là trợ lý ảo hỗ trợ sức khỏe tinh thần.<br>
+                Tôi có thể giúp bạn tìm hiểu về stress, lo âu hoặc các mẹo cân bằng cuộc sống dựa trên tài liệu y khoa uy tín.<br><br>
+                <i>Lưu ý: Tôi không thay thế bác sĩ. Nếu bạn đang gặp khủng hoảng, hãy gọi cấp cứu ngay.</i>
+            </div>
+        </div>
+
+        <div class="chat-input-area">
+            <input type="text" id="user-input" placeholder="Chia sẻ vấn đề của bạn... (VD: Làm sao giảm stress công việc?)" onkeypress="handleKeyPress(event)">
+            <button onclick="sendMessage()">Gửi</button>
+        </div>
+
+        <div class="disclaimer">
+            Thông tin được tổng hợp từ tài liệu WHO. Không phải lời khuyên y tế.
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:8000/query"; // Địa chỉ API FastAPI của bạn
+
+        function handleKeyPress(event) {
+            if (event.key === "Enter") {
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const inputField = document.getElementById("user-input");
+            const chatBox = document.getElementById("chat-box");
+            const question = inputField.value.trim();
+
+            if (!question) return;
+
+            // 1. Hiển thị tin nhắn người dùng
+            appendMessage(question, 'user');
+            inputField.value = "";
+
+            // 2. Hiển thị trạng thái "Đang nhập..."
+            const loadingId = appendLoading(chatBox);
+
+            try {
+                // GỌI API FastAPI (File rag-api.py của bạn)
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ question: question, rerank: true })
+                });
+
+                if (!response.ok) throw new Error("Lỗi kết nối API");
+
+                const data = await response.json();
+                
+                // Xóa loading
+                document.getElementById(loadingId).remove();
+
+                // 3. Hiển thị câu trả lời từ Bot + Nguồn
+                appendMessage(data.answer, 'bot', data.sources);
+
+            } catch (error) {
+                document.getElementById(loadingId).remove();
+                // Fallback giả lập (Nếu chưa chạy API thật)
+                console.error(error);
+                appendMessage("Hiện tại tôi đang ở chế độ Demo giao diện (chưa kết nối API). Nhưng giao diện này đã sẵn sàng để kết nối với backend Python của bạn!", 'bot');
+            }
+        }
+
+        function appendMessage(text, sender, sources = []) {
+            const chatBox = document.getElementById("chat-box");
+            const msgDiv = document.createElement("div");
+            msgDiv.classList.add("message", sender);
+            
+            // Xử lý xuống dòng
+            let formattedText = text.replace(/\n/g, "<br>");
+            msgDiv.innerHTML = formattedText;
+
+            // Nếu là bot và có nguồn tham khảo (RAG feature)
+            if (sender === 'bot' && sources && sources.length > 0) {
+                const sourceDiv = document.createElement("div");
+                sourceDiv.classList.add("sources-container");
+                sourceDiv.innerHTML = "<strong>Nguồn tham khảo:</strong><br>";
+                
+                sources.forEach((src, index) => {
+                    const tag = document.createElement("span");
+                    tag.classList.add("source-tag");
+                    // Lấy tên file ngắn gọn
+                    let fileName = src.local_path ? src.local_path.split('\\').pop().split('/').pop() : "Doc " + (index + 1);
+                    tag.innerText = `[${index + 1}] ${fileName}`;
+                    tag.title = `Đoạn văn bản tại ký tự: ${src.start_char}`;
+                    sourceDiv.appendChild(tag);
+                });
+                msgDiv.appendChild(sourceDiv);
+            }
+
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight; // Tự cuộn xuống cuối
+        }
+
+        function appendLoading(chatBox) {
+            const id = "loading-" + Date.now();
+            const div = document.createElement("div");
+            div.id = id;
+            div.classList.add("message", "bot");
+            div.style.fontStyle = "italic";
+            div.style.color = "#888";
+            div.innerText = "Đang suy nghĩ và tra cứu tài liệu...";
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return id;
+        }
+    </script>
+</body>
+</html>
