@@ -1,6 +1,6 @@
 # src/rag_pipeline.py
 """
-RAG pipeline (safe): retrieve from Chroma -> optional rerank -> LLM call (OpenAI or fallback).
+RAG pipeline (safe): retrieve from Chroma -> optional rerank -> LLM call (Groq or fallback).
 - Ensures HF cache is inside project/.cache BEFORE importing HF libs.
 - Uses only project/.cache and project/db/chroma (no files outside project).
 - No background processes.
@@ -30,14 +30,15 @@ import chromadb
 import tiktoken
 from typing import List
 
-# optional openai
 try:
-    from google import genai
-    from google.genai.errors import APIError
-    HAS_GEMINI = True
+    from groq import Groq
+    from groq import APIError as GroqAPIError
+    HAS_GROQ = True
 except Exception:
-    HAS_GEMINI = False
-    genai = None
+    HAS_GROQ = False
+    Groq = None
+    GroqAPIError = None
+    print("WARNING: Thư viện 'groq' chưa cài đặt. Chạy: pip install groq")
 
 # optional reranker; re_ranker.py provided separately
 try:
@@ -55,8 +56,10 @@ RETRIEVE_K = 20
 FINAL_K = 5
 ENCODER_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 
-GEMINI_API_KEY = <YOUR_API_KEY>
-GEMINI_MODEL = "gemini-2.5-flash"
+
+GROQ_API_KEY = <YOUR_GROQ_API_KEY>
+GROQ_MODEL = "llama-3.1-8b-instant"
+
 # -----------------------------
 # 4) HELPERS
 # -----------------------------
@@ -89,40 +92,41 @@ def build_prompt(question: str, contexts: List[dict]) -> str:
     prompt = system + "\n\n" + "CONTEXT:\n" + "\n\n".join(ctx_texts) + "\n\nUser question: " + question
     return prompt
 
-def call_llm(prompt: str, max_tokens: int = 512, model: str = GEMINI_MODEL) -> str:
-    """
-    If openai package present and OPENAI_API_KEY set -> call OpenAI ChatCompletion.
-    Otherwise return a safe offline demo string (no network).
-    """
-    # Check 1: Thư viện đã được cài chưa?
-    if not HAS_GEMINI:
-        return ("Demo mode (Thư viện google-genai chưa cài). Install: pip install google-genai.")
+def call_llm(prompt: str, max_tokens: int = 512, model: str = GROQ_MODEL) -> str:
+    # 1. KIỂM TRA API KEY TRƯỚC
+    if not GROQ_API_KEY:
+        return "Demo mode (Lỗi: Vui lòng dán GROQ_API_KEY vào mục CONFIG.)"
         
-    # Khởi tạo client với API Key hardcode
+    if not HAS_GROQ:
+        return "Demo mode (Lỗi: Thư viện 'groq' chưa được cài đặt.)"
+        
     try:
-        client = genai.Client(api_key=GEMINI_API_KEY)
-    except Exception as e:
-        return f"Demo mode (Lỗi khởi tạo client): {e}"
+        # 2. KHỞI TẠO CLIENT VÀ GỌI API
+        client = Groq(api_key=GROQ_API_KEY)
 
-    # Gọi API Gemini
-    try:
-        response = client.models.generate_content(
-            model=model,
-            contents=[
-                {"role": "user", "parts": [{"text": prompt}]}
-            ],
-            config={"max_output_tokens": max_tokens, "temperature": 0.2}
+        response = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[
+                {"role": "user", "content": prompt} # Gửi prompt đã được xây dựng
+                ],
+            max_tokens=max_tokens,
+            temperature=0.2,
         )
-        if response.text:
-            return response.text.strip()
-        else:
-            # Trả về thông báo lỗi nếu LLM không tạo ra được text (trả về None hoặc chuỗi rỗng)
-            return f"Demo mode (LLM không tạo ra được câu trả lời. LLM Response: {response.candidates[0].finish_reason if response.candidates else 'Unknown reason'})"
-    
-    except APIError as e:
-        return f"Demo mode (Lỗi API Gemini): {e}"
+        return response.choices[0].message.content.strip()
+
+    except GroqAPIError as e:
+        # 3. XỬ LÝ LỖI API CỦA GROQ
+        status_code = getattr(e, 'status_code', 'Unknown')
+        print(f"[ERROR] Lỗi Groq API ({status_code}): {e.message}")
+        return f"Demo mode (Lỗi Groq API): Lỗi {status_code}. Vui lòng kiểm tra API Key hoặc hạn mức."
+        
     except Exception as e:
-        return f"Demo mode (Lỗi kết nối/chung): {e}"
+        # 4. XỬ LÝ LỖI CHUNG (Kết nối,...)
+        print(f"[ERROR] Lỗi kết nối/chung Groq: {e}")
+        return f"Demo mode (Lỗi kết nối Groq): {e}"
+
+    # 5. ĐẢM BẢO LUÔN CÓ KẾT QUẢ TRẢ VỀ NẾU CÓ LỖI XẢY RA
+    return "Demo mode (LLM call failed unexpectedly.)"
 # -----------------------------
 # 5) RAG pipeline
 # -----------------------------
@@ -210,4 +214,3 @@ if __name__ == "__main__":
         print("\n=== SOURCES ===\n")
         for i, c in enumerate(ctx, start=1):
             print(f"[{i}] doc_id={c.get('doc_id','?')} src={c.get('local_path','?')} chars={c.get('start_char','?')}-{c.get('end_char','?')}")
-
