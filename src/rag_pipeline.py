@@ -1,6 +1,6 @@
 # src/rag_pipeline.py
 """
-RAG pipeline (safe): retrieve from Chroma -> optional rerank -> LLM call (Groq or fallback).
+RAG pipeline (safe): retrieve from Chroma -> optional rerank -> LLM call (OpenAI or fallback).
 - Ensures HF cache is inside project/.cache BEFORE importing HF libs.
 - Uses only project/.cache and project/db/chroma (no files outside project).
 - No background processes.
@@ -57,8 +57,8 @@ FINAL_K = 5
 ENCODER_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 
 
-GROQ_API_KEY = <YOUR_GROQ_API_KEY>
-GROQ_MODEL = "llama-3.1-8b-instant"
+GROQ_API_KEY = "<YOUR_GROQ_API_KEY>"
+GROQ_MODEL = "llama-3.1-8b-instant" # Hoặc 'mixtral-8x7b-32768'
 
 # -----------------------------
 # 4) HELPERS
@@ -85,9 +85,16 @@ def build_prompt(question: str, contexts: List[dict]) -> str:
         src = f"[{i}] {Path(lp).name} (chars {sc}-{ec})"
         ctx_texts.append(f"Source {src}:\n{snippet}\n")
     system = (
-        "You are an empathetic assistant. You must not provide medical diagnosis. "
-        "If user is in crisis, instruct them to contact emergency services immediately. "
-        "Always cite sources by number when referencing facts."
+        "You are a helpful and empathetic mental health assistant for people with high emotional labor. "
+        "Your goal is to provide supportive suggestions and information based on the provided CONTEXT.\n"
+        "\n"
+        "### INSTRUCTIONS:\n"
+        "1. **Information over Diagnosis:** You CAN list symptoms, coping mechanisms, or general information if they appear in the CONTEXT. However, DO NOT tell the user specifically that they have a condition (e.g., say 'Common symptoms include...' instead of 'You have...').\n"
+        "2. **Safety First:** If the user implies self-harm or immediate danger, strictly instruct them to contact emergency services.\n"
+        "3. **Tone:** Warm, professional, and non-judgmental.\n"
+        "4. **Citation:** Always cite the source number (e.g., [1]) when providing facts.\n"
+        "5. **Language:** Answer in the same language as the user's question (Vietnamese if Vietnamese).\n"
+        "6. **Fallback:** If the answer is not in the context, generally suggest seeking professional help, but try to answer from context first."
     )
     prompt = system + "\n\n" + "CONTEXT:\n" + "\n\n".join(ctx_texts) + "\n\nUser question: " + question
     return prompt
